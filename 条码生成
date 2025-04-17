@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>多码制条码生成</title>
+    <style>
+        /* 样式部分保持不变 */
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        /* ... 省略重复样式 ... */
+        #barcode { height: 180px; width: 100%; margin-top: 15px; display: flex; justify-content: center; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>多码制条码生成工具</h1>
+    <div class="form-group">
+        <label for="barcodeType">选择码制</label>
+        <select id="barcodeType">
+            <option value="EAN13">EAN13</option>
+            <option value="Code128">Code128</option>
+            <option value="UPC-A">UPC-A</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="inputCode">输入代码</label>
+        <input type="text" id="inputCode" placeholder="EAN13:12位数字 / UPC-A:11位数字 / Code128:任意字符">
+    </div>
+    <button id="generateButton">生成条码</button>
+    <div id="errorMessage"></div>
+    <!-- 新增校验位显示区域 -->
+    <div id="checkDigitDisplay" class="mt-4 text-gray-700"></div>
+    <div id="barcode"></div>
+</div>
+
+<script>
+    document.getElementById('generateButton').addEventListener('click', function() {
+        const barcodeType = document.getElementById('barcodeType').value;
+        const inputCode = document.getElementById('inputCode').value.trim();
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const checkDigitDiv = document.getElementById('checkDigitDisplay'); // 新增校验位显示
+        const barcodeDiv = document.getElementById('barcode');
+
+        errorMessageDiv.textContent = '';
+        checkDigitDiv.textContent = ''; // 清空旧校验位显示
+        barcodeDiv.innerHTML = '';
+
+        if (!inputCode) {
+            errorMessageDiv.textContent = '请输入代码';
+            return;
+        }
+
+        // EAN13 验证：12位纯数字
+        if (barcodeType === 'EAN13' && !/^\d{12}$/.test(inputCode)) {
+            errorMessageDiv.textContent = 'EAN13 需输入 12 位纯数字';
+            return;
+        }
+        // UPC-A 验证：11位纯数字
+        if (barcodeType === 'UPC-A' && !/^\d{11}$/.test(inputCode)) {
+            errorMessageDiv.textContent = 'UPC-A 需输入 11 位纯数字';
+            return;
+        }
+
+        // 修正后的校验位计算函数（关键修复：UPC-A的奇偶位判断）
+        function calculateCheckDigit(code, type) {
+            let sum = 0;
+            for (let i = 0; i < code.length; i++) {
+                const digit = parseInt(code.charAt(i));
+                // EAN13和UPC-A的奇数位（索引0、2、4...）均乘以3
+                if (type === 'EAN13' || type === 'UPC-A') {
+                    // 统一奇数位（i%2===0）乘以3，UPC-A的输入是11位，校验位计算规则与EAN13前11位一致
+                    sum += (i % 2 === 0 ? digit * 3 : digit);
+                }
+            }
+            return (10 - (sum % 10)) % 10; // 确保结果在0-9之间
+        }
+
+        let fullCode = inputCode;
+        if (barcodeType === 'EAN13') {
+            const checkDigit = calculateCheckDigit(inputCode, 'EAN13');
+            fullCode += checkDigit;
+            checkDigitDiv.textContent = `EAN13 校验位：${checkDigit}`; // 显示校验位
+        } else if (barcodeType === 'UPC-A') {
+            const checkDigit = calculateCheckDigit(inputCode, 'UPC-A');
+            fullCode += checkDigit;
+            checkDigitDiv.textContent = `UPC-A 校验位：${checkDigit}`; // 显示校验位
+        }
+
+        // 生成条码（配置保持不变）
+        JsBarcode(barcodeDiv, fullCode, {
+            format: barcodeType,
+            displayValue: true,
+            width: 2,
+            height: 100,
+            fontOptions: { size: 12 }
+        });
+    });
+</script>
+</body>
+</html>
